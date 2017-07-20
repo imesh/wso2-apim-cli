@@ -1,67 +1,93 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/urfave/cli"
 )
 
-const tokenEndpointEnv string = "WSO2_APIM_TOKEN_ENDPOINT"
-const clientRegEndpointEnv string = "WSO2_APIM_CLIENT_REG_ENDPOINT"
-const publisherEndpointEnv string = "WSO2_APIM_PUBLISHER_ENDPOINT"
-const exportEndpointEnv string = "WSO2_APIM_EXPORT_ENDPOINT"
-const usernameEnv string = "WSP2_APIM_USERNAME"
-const passwordEnv string = "WSO2_APIM_PASSWORD"
+const srcApimEndpointEnv string = "SRC_WSO2_APIM_ENDPOINT"
+const srcApimGatewayEndpointEnv string = "SRC_WSO2_APIM_GATEWAY_ENDPOINT"
+const srcApimUsernameEnv string = "SRC_WSO2_APIM_USERNAME"
+const srcApimPasswordEnv string = "SRC_WSO2_APIM_PASSWORD"
 
 func main() {
-	tokenEndpoint := os.Getenv(tokenEndpointEnv)
-	if tokenEndpoint == "" {
-		log.Print("error: environment variable " + tokenEndpointEnv + " not found")
+	app := cli.NewApp()
+	app.Name = "WSO2 API Manager CLI"
+	app.Usage = ""
+	app.Version = "0.0.1"
+	app.Commands = []cli.Command{
+		{
+			Name:    "export",
+			Aliases: []string{"e"},
+			Usage:   "Export APIs from a API Manager environment",
+			Action: func(c *cli.Context) error {
+				executeExport()
+				return nil
+			},
+		},
+		{
+			Name:    "import",
+			Aliases: []string{"i"},
+			Usage:   "Import APIs into a API Manager environment",
+			Action: func(c *cli.Context) error {
+				executeImport()
+				return nil
+			},
+		},
+	}
+
+	app.Run(os.Args)
+}
+
+func executeExport() {
+	srcApimEndpoint := os.Getenv(srcApimEndpointEnv)
+	if srcApimEndpoint == "" {
+		log.Print("error: environment variable " + srcApimEndpointEnv + " not found")
 		return
 	}
 
-	clientRegEndpoint := os.Getenv(clientRegEndpointEnv)
-	if clientRegEndpoint == "" {
-		log.Print("error: environment variable " + clientRegEndpointEnv + " not found")
+	srcApimGatewayEndpoint := os.Getenv(srcApimGatewayEndpointEnv)
+	if srcApimGatewayEndpoint == "" {
+		log.Print("error: environment variable " + srcApimGatewayEndpointEnv + " not found")
 		return
 	}
 
-	publisherEndpoint := os.Getenv(publisherEndpointEnv)
-	if publisherEndpoint == "" {
-		log.Print("error: environment variable " + publisherEndpointEnv + " not found")
+	srcApimUsername := os.Getenv(srcApimUsernameEnv)
+	if srcApimUsername == "" {
+		log.Print("error: environment variable " + srcApimUsernameEnv + " not found")
 		return
 	}
 
-	exportEndpoint := os.Getenv(exportEndpointEnv)
-	if exportEndpoint == "" {
-		log.Print("error: environment variable " + exportEndpointEnv + " not found")
+	srcApimPassword := os.Getenv(srcApimPasswordEnv)
+	if srcApimPassword == "" {
+		log.Print("error: environment variable " + srcApimPasswordEnv + " not found")
 		return
 	}
 
-	username := os.Getenv(usernameEnv)
-	if username == "" {
-		log.Print("error: environment variable " + usernameEnv + " not found")
-		return
-	}
+	tokenEndpoint := srcApimGatewayEndpoint + "/token"
+	clientRegEndpoint := srcApimEndpoint + "client-registration/v0.11/register"
+	publisherEndpoint := srcApimEndpoint + "api/am/publisher"
+	exportEndpoint := srcApimEndpoint + "api-import-export-2.1.0-v2/export-api"
 
-	password := os.Getenv(passwordEnv)
-	if password == "" {
-		log.Print("error: environment variable " + passwordEnv + " not found")
-		return
-	}
-
-	clientId, clientSecret := GetClientIdSecret(clientRegEndpoint, username, password)
-	token := GetToken(tokenEndpoint, username, password, clientId, clientSecret)
+	clientId, clientSecret := GetClientIdSecret(clientRegEndpoint, srcApimUsername, srcApimPassword)
+	token := GetToken(tokenEndpoint, srcApimUsername, srcApimPassword, clientId, clientSecret)
 	apis := GetAPIs(publisherEndpoint, token)
 
 	exportPath := "./export"
 	for _, api := range apis.List {
 		log.Println("Exporting API " + api.Name + "...")
-		err := ExportAPI(exportEndpoint, username, password, exportPath, api.Name, api.Version, api.Provider)
+		err := ExportAPI(exportEndpoint, srcApimUsername, srcApimPassword, exportPath, api.Name, api.Version, api.Provider)
 		if err != nil {
 			log.Println("Could not export API ", api.Name)
-		} else {
-			log.Println("API " + api.Name + " exported successfully")
+			continue
 		}
+		log.Println("API " + api.Name + " exported successfully")
 	}
+}
 
+func executeImport() {
+	fmt.Println("Not implemented yet!")
 }
