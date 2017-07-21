@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -28,6 +28,7 @@ type Api struct {
 	Context     string `json:context`
 	Version     string `json:version`
 	Provider    string `json:provider`
+	Status      string `json:status`
 }
 
 func GetClientIdSecret(clientRegEndpoint string, username string, password string) (clientID string, clientSecret string) {
@@ -48,7 +49,7 @@ func GetClientIdSecret(clientRegEndpoint string, username string, password strin
 
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 		return "", err.Error()
 	}
 
@@ -63,9 +64,7 @@ func GetClientIdSecret(clientRegEndpoint string, username string, password strin
 
 	clientID = data["clientId"].(string)
 	clientSecret = data["clientSecret"].(string)
-
-	log.Print("Client ID: ", clientID)
-	log.Print("Client Secret: ", clientSecret)
+	fmt.Println("Client id and client secret obtained")
 	return clientID, clientSecret
 }
 
@@ -84,7 +83,7 @@ func GetToken(tokenEndpoint string, username string, password string, clientId s
 
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 		return
 	}
 
@@ -98,43 +97,44 @@ func GetToken(tokenEndpoint string, username string, password string, clientId s
 	}
 
 	accessToken = data["access_token"].(string)
-	log.Println("Access token: ", accessToken)
+	fmt.Println("Access token generated")
 	return accessToken
 }
 
-func ExportAPI(exportEndpoint string, username string, password string, exportPath string, name string, version string, provider string) (err error) {
+func ExportAPI(exportEndpoint string, username string, password string, exportPath string, api Api) (filePath string, err error) {
 
 	client := createHTTPClient()
 	req, err := http.NewRequest("GET", exportEndpoint, nil)
 	req.Header.Add("Authorization", "Basic "+basicAuth(username, password))
 
 	q := req.URL.Query()
-	q.Add("name", name)
-	q.Add("version", version)
-	q.Add("provider", provider)
+	q.Add("name", api.Name)
+	q.Add("version", api.Version)
+	q.Add("provider", api.Provider)
 	req.URL.RawQuery = q.Encode()
 
 	res, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusFound {
-		return errors.New("API import/export web application not found")
+		return "", errors.New("API import/export web application not found")
 	}
 	if res.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(res.Body)
-		return errors.New(string(body))
+		return "", errors.New(string(body))
 	}
 
-	out, err := os.Create(exportPath + "/" + name + "-" + version + ".zip")
+	filePath = exportPath + "/" + api.Name + "-" + api.Version + ".zip"
+	out, err := os.Create(filePath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer out.Close()
 	io.Copy(out, res.Body)
-	return nil
+	return filePath, nil
 }
 
 func ImportAPI(importEndpoint string, username string, password string, filePath string) (err error) {
@@ -187,7 +187,7 @@ func GetAPIs(publisherEndpoint string, token string) GetApiResponse {
 
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 		return GetApiResponse{}
 	}
 
@@ -199,7 +199,52 @@ func GetAPIs(publisherEndpoint string, token string) GetApiResponse {
 	return response
 }
 
-var RedirectAttemptedError = errors.New("redirect")
+func GetAPIsByStatus(publisherEndpoint string, token string, status string) GetApiResponse {
+
+	client := createHTTPClient()
+	req, err := http.NewRequest("GET", publisherEndpoint+"/v0.11/apis/", nil)
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	q := req.URL.Query()
+	q.Add("query", "status:"+status)
+	req.URL.RawQuery = q.Encode()
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return GetApiResponse{}
+	}
+
+	defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+
+	var response GetApiResponse
+	json.Unmarshal(body, &response)
+	return response
+}
+
+func PublishAPI(publishEndpoint string, token string, apiId string) (err error) {
+
+	client := createHTTPClient()
+	req, err := http.NewRequest("POST", publishEndpoint, nil)
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	q := req.URL.Query()
+	q.Add("apiId", apiId)
+	q.Add("action", "Publish")
+	req.URL.RawQuery = q.Encode()
+
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(res.Body)
+		return errors.New(string(body))
+	}
+	return nil
+}
 
 func createHTTPClient() *http.Client {
 	tr := &http.Transport{
