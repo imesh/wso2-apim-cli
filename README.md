@@ -7,15 +7,14 @@ WSO2 API Manager CLI provides commands for exporting and importing APIs. Follow 
 1. Set following environment variables pointing to an API Manager environment for exporting APIs:
 
    ```bash
-   export SRC_WSO2_APIM_ENDPOINT=https://localhost:9443/
+   export SRC_WSO2_APIM_ENDPOINT=https://localhost:9443
    export SRC_WSO2_APIM_GATEWAY_ENDPOINT=https://localhost:8243
    export SRC_WSO2_APIM_USERNAME=admin
    export SRC_WSO2_APIM_PASSWORD=admin
 
-   export DEST_WSO2_APIM_ENDPOINT=https://localhost:9443/
-   export DEST_WSO2_APIM_GATEWAY_HOST=https://localhost:8243
-   export DEST_WSP2_APIM_USERNAME=admin
-   export DEST_WSO2_APIM_PASSWORD=admin
+   export DST_WSO2_APIM_ENDPOINT=https://localhost:9445
+   export DST_WSO2_APIM_USERNAME=admin
+   export DST_WSO2_APIM_PASSWORD=admin
    ```
 2. Build the project using the following command:
 
