@@ -4,9 +4,12 @@ WSO2 API Manager CLI provides commands for migrating APIs between API manager en
 
 ## Getting Started
 
-1. Clone this project and build it using the following command:
+1. Clone this project and build it using the following commands:
 
    ```
+   git clone https://github.com/imesh/wso2-apim-cli
+   cd wso2-apim-cli
+   go get github.com/urfave/cli
    go build .
    ```
 
